@@ -12,18 +12,18 @@ export default function MobileNav() {
       <button
         aria-label="Open menu"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-muted"
+        className="inline-flex items-center justify-center rounded-md p-2 h-10 w-10 text-muted-foreground hover:text-foreground hover:bg-muted"
       >
         <Menu className="size-5" />
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex">
+        <div className="fixed inset-0 z-50 flex pt-14">
           <div
             className="fixed inset-0 bg-black/40"
             onClick={() => setOpen(false)}
           />
-          <aside className="relative w-64 bg-card p-4 border-r border-border">
+          <aside className="relative w-72 bg-card p-4 border-r border-border h-[calc(100vh-56px)]">
             <div className="flex items-center justify-between mb-4">
               <div className="font-semibold">Menu</div>
               <button

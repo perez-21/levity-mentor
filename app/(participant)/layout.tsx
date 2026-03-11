@@ -27,17 +27,14 @@ export default async function ParticipantLayout({
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
+            <MobileNav />
             <span className="font-semibold text-sm">Levity Mentor</span>
-            <nav className="hidden sm:flex gap-4 text-sm">
+            <nav className="hidden sm:flex gap-4 text-sm ml-4">
               <NavLink href="/dashboard">Dashboard</NavLink>
               <NavLink href="/chat">AI Mentor</NavLink>
               <NavLink href="/finances">Finances</NavLink>
             </nav>
-            <div className="sm:hidden">
-              {/* Mobile nav drawer */}
-              <MobileNav />
-            </div>
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-500">
             <span>

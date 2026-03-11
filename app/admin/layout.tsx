@@ -28,16 +28,13 @@ export default async function AdminLayout({
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
+            <MobileNav />
             <span className="font-semibold text-sm">Levity Admin</span>
-            <nav className="hidden sm:flex gap-4 text-sm">
+            <nav className="hidden sm:flex gap-4 text-sm ml-4">
               <NavLink href="/admin">Overview</NavLink>
               <NavLink href="/admin/invite">Invite Participant</NavLink>
             </nav>
-            <div className="sm:hidden">
-              {" "}
-              {/* mobile */} <MobileNav />
-            </div>
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-500">
             <span>{user.email}</span>
