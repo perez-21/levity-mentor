@@ -73,9 +73,13 @@ export function ChatInterface({ initialMessages }: Props) {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
-              ? { ...m, content: err.error ?? "Something went wrong. Please try again." }
-              : m
-          )
+              ? {
+                  ...m,
+                  content:
+                    err.error ?? "Something went wrong. Please try again.",
+                }
+              : m,
+          ),
         );
         setLoading(false);
         return;
@@ -90,14 +94,16 @@ export function ChatInterface({ initialMessages }: Props) {
         if (done) break;
         full += decoder.decode(value, { stream: true });
         setMessages((prev) =>
-          prev.map((m) => (m.id === assistantId ? { ...m, content: full } : m))
+          prev.map((m) => (m.id === assistantId ? { ...m, content: full } : m)),
         );
       }
     } catch {
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === assistantId ? { ...m, content: "Network error. Please try again." } : m
-        )
+          m.id === assistantId
+            ? { ...m, content: "Network error. Please try again." }
+            : m,
+        ),
       );
     } finally {
       setLoading(false);
@@ -118,7 +124,10 @@ export function ChatInterface({ initialMessages }: Props) {
         {messages.length === 0 && (
           <div className="text-center text-sm text-gray-400 py-16">
             <p className="text-base mb-2">👋 Your AI mentor is ready.</p>
-            <p>Ask about pricing, marketing, experiments, or how to spend your capital.</p>
+            <p>
+              Ask about pricing, marketing, experiments, or how to spend your
+              capital.
+            </p>
           </div>
         )}
         {messages.map((msg) => (
@@ -126,11 +135,21 @@ export function ChatInterface({ initialMessages }: Props) {
             key={msg.id}
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
-            <div className={`max-w-[80%] px-4 py-3 text-sm whitespace-pre-wrap ${msg.role === "user" ? "" : ""}`}>
-              <div className={`rounded-2xl px-4 py-3 ${msg.role === "user" ? "bg-gray-900 text-white rounded-br-sm" : "bg-white border text-gray-800 rounded-bl-sm shadow-sm"}`}>
+            <div
+              className={`max-w-[80%] px-4 py-3 text-sm whitespace-pre-wrap ${msg.role === "user" ? "" : ""}`}
+            >
+              <div
+                className={`rounded-2xl px-4 py-3 ${
+                  msg.role === "user"
+                    ? "bg-primary text-primary-foreground rounded-br-sm"
+                    : "bg-card border text-card-foreground rounded-bl-sm shadow-sm"
+                }`}
+              >
                 {msg.role === "assistant" ? (
-                  msg.content ? <MarkdownMessage content={msg.content} /> : (
-                    <span className="inline-flex gap-1 text-gray-400">
+                  msg.content ? (
+                    <MarkdownMessage content={msg.content} />
+                  ) : (
+                    <span className="inline-flex gap-1 text-muted-foreground">
                       <span className="animate-pulse">●</span>
                       <span className="animate-pulse delay-100">●</span>
                       <span className="animate-pulse delay-200">●</span>
@@ -139,7 +158,7 @@ export function ChatInterface({ initialMessages }: Props) {
                 ) : (
                   <div className="whitespace-pre-wrap">{msg.content}</div>
                 )}
-                <p className={`text-xs mt-1 text-gray-400`}>
+                <p className={`text-xs mt-1 text-muted-foreground`}>
                   {format(new Date(msg.created_at), "h:mm a")}
                 </p>
               </div>
@@ -159,7 +178,11 @@ export function ChatInterface({ initialMessages }: Props) {
           className="resize-none flex-1"
           disabled={loading}
         />
-        <Button type="submit" disabled={loading || !input.trim()} className="self-end rounded-full p-2">
+        <Button
+          type="submit"
+          disabled={loading || !input.trim()}
+          className="self-end rounded-full p-2"
+        >
           <ArrowUp className="size-4" />
         </Button>
       </form>
