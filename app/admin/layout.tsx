@@ -1,4 +1,5 @@
 import Link from "next/link";
+import NavLink from "@/components/ui/NavLink";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
@@ -22,10 +23,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <span className="font-semibold text-sm">Levity Admin</span>
-            <nav className="flex gap-4 text-sm">
-              <Link href="/admin" className="text-gray-600 hover:text-gray-900">Overview</Link>
-              <Link href="/admin/invite" className="text-gray-600 hover:text-gray-900">Invite Participant</Link>
+            <nav className="hidden sm:flex gap-4 text-sm">
+              <NavLink href="/admin">Overview</NavLink>
+              <NavLink href="/admin/invite">Invite Participant</NavLink>
             </nav>
+            <div className="sm:hidden"> {/* mobile */} </div>
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-500">
             <span>{user.email}</span>

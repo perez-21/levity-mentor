@@ -4,6 +4,17 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { ArrowUp } from "lucide-react";
+
+function MarkdownMessage({ content }: { content: string }) {
+  return (
+    <div className="prose prose-sm max-w-none text-sm leading-6">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </div>
+  );
+}
 
 interface Message {
   id: string;
@@ -115,23 +126,23 @@ export function ChatInterface({ initialMessages }: Props) {
             key={msg.id}
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
-            <div
-              className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap ${
-                msg.role === "user"
-                  ? "bg-gray-900 text-white rounded-br-sm"
-                  : "bg-white border text-gray-800 rounded-bl-sm"
-              }`}
-            >
-              {msg.content || (
-                <span className="inline-flex gap-1 text-gray-400">
-                  <span className="animate-pulse">●</span>
-                  <span className="animate-pulse delay-100">●</span>
-                  <span className="animate-pulse delay-200">●</span>
-                </span>
-              )}
-              <p className={`text-xs mt-1 ${msg.role === "user" ? "text-gray-400" : "text-gray-400"}`}>
-                {format(new Date(msg.created_at), "h:mm a")}
-              </p>
+            <div className={`max-w-[80%] px-4 py-3 text-sm whitespace-pre-wrap ${msg.role === "user" ? "" : ""}`}>
+              <div className={`rounded-2xl px-4 py-3 ${msg.role === "user" ? "bg-gray-900 text-white rounded-br-sm" : "bg-white border text-gray-800 rounded-bl-sm shadow-sm"}`}>
+                {msg.role === "assistant" ? (
+                  msg.content ? <MarkdownMessage content={msg.content} /> : (
+                    <span className="inline-flex gap-1 text-gray-400">
+                      <span className="animate-pulse">●</span>
+                      <span className="animate-pulse delay-100">●</span>
+                      <span className="animate-pulse delay-200">●</span>
+                    </span>
+                  )
+                ) : (
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                )}
+                <p className={`text-xs mt-1 text-gray-400`}>
+                  {format(new Date(msg.created_at), "h:mm a")}
+                </p>
+              </div>
             </div>
           </div>
         ))}
@@ -145,12 +156,11 @@ export function ChatInterface({ initialMessages }: Props) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Ask your mentor… (Enter to send, Shift+Enter for newline)"
-          rows={2}
           className="resize-none flex-1"
           disabled={loading}
         />
-        <Button type="submit" disabled={loading || !input.trim()} className="self-end">
-          Send
+        <Button type="submit" disabled={loading || !input.trim()} className="self-end rounded-full p-2">
+          <ArrowUp className="size-4" />
         </Button>
       </form>
     </div>

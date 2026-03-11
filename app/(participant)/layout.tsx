@@ -1,4 +1,5 @@
 import Link from "next/link";
+import NavLink from "@/components/ui/NavLink";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
@@ -21,11 +22,14 @@ export default async function ParticipantLayout({ children }: { children: React.
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <span className="font-semibold text-sm">Levity Mentor</span>
-            <nav className="flex gap-4 text-sm">
-              <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">Dashboard</Link>
-              <Link href="/chat" className="text-gray-600 hover:text-gray-900">AI Mentor</Link>
-              <Link href="/finances" className="text-gray-600 hover:text-gray-900">Finances</Link>
+            <nav className="hidden sm:flex gap-4 text-sm">
+              <NavLink href="/dashboard">Dashboard</NavLink>
+              <NavLink href="/chat">AI Mentor</NavLink>
+              <NavLink href="/finances">Finances</NavLink>
             </nav>
+            <div className="sm:hidden">
+              {/* Mobile nav placeholder: we'll progressively enhance with a drawer later */}
+            </div>
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-500">
             <span>{profile?.business_name || profile?.full_name || user.email}</span>
