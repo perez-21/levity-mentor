@@ -1,12 +1,19 @@
 import Link from "next/link";
 import NavLink from "@/components/ui/NavLink";
+import MobileNav from "@/components/ui/MobileNav";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
 
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const { data: profile } = await supabase
@@ -27,7 +34,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <NavLink href="/admin">Overview</NavLink>
               <NavLink href="/admin/invite">Invite Participant</NavLink>
             </nav>
-            <div className="sm:hidden"> {/* mobile */} </div>
+            <div className="sm:hidden">
+              {" "}
+              {/* mobile */} <MobileNav />
+            </div>
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-500">
             <span>{user.email}</span>
@@ -35,9 +45,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </div>
         </div>
       </header>
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        {children}
-      </main>
+      <main className="max-w-6xl mx-auto px-4 py-8">{children}</main>
     </div>
   );
 }

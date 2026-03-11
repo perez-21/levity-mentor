@@ -1,12 +1,19 @@
 import Link from "next/link";
 import NavLink from "@/components/ui/NavLink";
+import MobileNav from "@/components/ui/MobileNav";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
 
-export default async function ParticipantLayout({ children }: { children: React.ReactNode }) {
+export default async function ParticipantLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
 
@@ -28,18 +35,19 @@ export default async function ParticipantLayout({ children }: { children: React.
               <NavLink href="/finances">Finances</NavLink>
             </nav>
             <div className="sm:hidden">
-              {/* Mobile nav placeholder: we'll progressively enhance with a drawer later */}
+              {/* Mobile nav drawer */}
+              <MobileNav />
             </div>
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-500">
-            <span>{profile?.business_name || profile?.full_name || user.email}</span>
+            <span>
+              {profile?.business_name || profile?.full_name || user.email}
+            </span>
             <LogoutButton />
           </div>
         </div>
       </header>
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        {children}
-      </main>
+      <main className="max-w-5xl mx-auto px-4 py-8">{children}</main>
     </div>
   );
 }
