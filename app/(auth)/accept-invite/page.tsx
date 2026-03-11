@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default function AcceptInvitePage() {
   const router = useRouter();
@@ -18,13 +24,25 @@ export default function AcceptInvitePage() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Supabase handles the token from the URL hash automatically on mount
     const supabase = createClient();
-    supabase.auth.onAuthStateChange((event) => {
-      if (event === "INITIAL_SESSION" || event === "SIGNED_IN") {
+    let subscription: { unsubscribe: () => void } | null = null;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
         setReady(true);
+        return;
       }
+
+      const { data } = supabase.auth.onAuthStateChange((event) => {
+        if (event === "INITIAL_SESSION" || event === "SIGNED_IN") {
+          setReady(true);
+        }
+      });
+
+      subscription = data.subscription;
     });
+
+    return () => subscription?.unsubscribe();
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -43,7 +61,9 @@ export default function AcceptInvitePage() {
     }
 
     // Save business description
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (user && businessDescription.trim()) {
       await supabase
         .from("profiles")
@@ -68,7 +88,9 @@ export default function AcceptInvitePage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Welcome to Levity</CardTitle>
-          <CardDescription>Set your password to activate your account</CardDescription>
+          <CardDescription>
+            Set your password to activate your account
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -85,7 +107,9 @@ export default function AcceptInvitePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="desc">Describe your business idea (optional)</Label>
+              <Label htmlFor="desc">
+                Describe your business idea (optional)
+              </Label>
               <Textarea
                 id="desc"
                 placeholder="e.g. I sell homemade peanut butter online targeting health-conscious students in Lagos."
@@ -93,7 +117,9 @@ export default function AcceptInvitePage() {
                 value={businessDescription}
                 onChange={(e) => setBusinessDescription(e.target.value)}
               />
-              <p className="text-xs text-gray-500">This helps your AI mentor give you better advice.</p>
+              <p className="text-xs text-gray-500">
+                This helps your AI mentor give you better advice.
+              </p>
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
