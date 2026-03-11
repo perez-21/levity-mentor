@@ -4,6 +4,7 @@ import MobileNav from "@/components/ui/MobileNav";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
+import ProfilePills from "@/components/ui/ProfilePills";
 
 export default async function ParticipantLayout({
   children,
@@ -37,9 +38,10 @@ export default async function ParticipantLayout({
             </nav>
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-500">
-            <span>
-              {profile?.business_name || profile?.full_name || user.email}
-            </span>
+            <ProfilePills
+              name={profile?.full_name || user.email}
+              business={profile?.business_name}
+            />
             <LogoutButton />
           </div>
         </div>

@@ -4,6 +4,7 @@ import MobileNav from "@/components/ui/MobileNav";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
+import ProfilePills from "@/components/ui/ProfilePills";
 
 export default async function AdminLayout({
   children,
@@ -37,7 +38,7 @@ export default async function AdminLayout({
             </nav>
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-500">
-            <span>{user.email}</span>
+            <ProfilePills name={user.email} role={profile?.role} />
             <LogoutButton />
           </div>
         </div>
