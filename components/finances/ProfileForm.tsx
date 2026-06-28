@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +13,10 @@ interface Props {
   businessDescription: string;
 }
 
-export function ProfileForm({ businessName: initialName, businessDescription: initialDesc }: Props) {
+export function ProfileForm({
+  businessName: initialName,
+  businessDescription: initialDesc,
+}: Props) {
   const router = useRouter();
   const [businessName, setBusinessName] = useState(initialName);
   const [businessDescription, setBusinessDescription] = useState(initialDesc);
@@ -24,15 +26,20 @@ export function ProfileForm({ businessName: initialName, businessDescription: in
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase.from("profiles").update({ business_name: businessName, business_description: businessDescription }).eq("id", user.id);
-    }
+
+    const res = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessName, businessDescription }),
+    });
+
     setLoading(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-    router.refresh();
+
+    if (res.ok) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      router.refresh();
+    }
   }
 
   return (
@@ -60,7 +67,9 @@ export function ProfileForm({ businessName: initialName, businessDescription: in
               onChange={(e) => setBusinessDescription(e.target.value)}
               placeholder="Describe what you sell, who your customers are, and how you make money."
             />
-            <p className="text-xs text-gray-500">This is shared with your AI mentor for context.</p>
+            <p className="text-xs text-gray-500">
+              This is shared with your AI mentor for context.
+            </p>
           </div>
           <Button type="submit" disabled={loading}>
             {saved ? "Saved!" : loading ? "Saving…" : "Save profile"}

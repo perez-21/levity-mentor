@@ -1,7 +1,7 @@
-import Link from "next/link";
 import NavLink from "@/components/ui/NavLink";
 import MobileNav from "@/components/ui/MobileNav";
 import { createClient } from "@/lib/supabase/server";
+import { getPrimaryEmail } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
 import ProfilePills from "@/components/ui/ProfilePills";
@@ -11,17 +11,14 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, userId } = await createClient();
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  if (!userId) redirect("/login");
+
+  const [{ data: profile }, email] = await Promise.all([
+    supabase.from("profiles").select("role").eq("id", userId).single(),
+    getPrimaryEmail(),
+  ]);
 
   if (profile?.role !== "admin") redirect("/dashboard");
 
@@ -38,7 +35,7 @@ export default async function AdminLayout({
             </nav>
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-500">
-            <ProfilePills name={user.email} role={profile?.role} />
+            <ProfilePills name={email ?? "Admin"} role={profile?.role} />
             <LogoutButton />
           </div>
         </div>

@@ -1,7 +1,7 @@
-import Link from "next/link";
 import NavLink from "@/components/ui/NavLink";
 import MobileNav from "@/components/ui/MobileNav";
 import { createClient } from "@/lib/supabase/server";
+import { getPrimaryEmail } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
 import ProfilePills from "@/components/ui/ProfilePills";
@@ -11,18 +11,14 @@ export default async function ParticipantLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, userId } = await createClient();
 
-  if (!user) redirect("/login");
+  if (!userId) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, business_name")
-    .eq("id", user.id)
-    .single();
+  const [{ data: profile }, email] = await Promise.all([
+    supabase.from("profiles").select("full_name, business_name").eq("id", userId).single(),
+    getPrimaryEmail(),
+  ]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -39,7 +35,7 @@ export default async function ParticipantLayout({
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-500">
             <ProfilePills
-              name={profile?.full_name || user.email}
+              name={profile?.full_name || email || "Participant"}
               business={profile?.business_name}
             />
             <LogoutButton />

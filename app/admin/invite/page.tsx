@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -11,7 +17,11 @@ export default function InvitePage() {
   const [fullName, setFullName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [result, setResult] = useState<{
+    ok: boolean;
+    message: string;
+    inviteUrl?: string;
+  } | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,14 +34,19 @@ export default function InvitePage() {
       body: JSON.stringify({ email, fullName, businessName }),
     });
 
+    const data = await res.json();
+
     if (res.ok) {
-      setResult({ ok: true, message: `Invite sent to ${email}` });
+      setResult({
+        ok: true,
+        message: data.message ?? `Invitation has been sent to${email}. Alternatively, you can send the invite url`,
+        inviteUrl: data.inviteUrl,
+      });
       setEmail("");
       setFullName("");
       setBusinessName("");
     } else {
-      const data = await res.json();
-      setResult({ ok: false, message: data.error ?? "Failed to send invite" });
+      setResult({ ok: false, message: data.error ?? "Failed to create invite" });
     }
 
     setLoading(false);
@@ -43,9 +58,11 @@ export default function InvitePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Send invite email</CardTitle>
+          <CardTitle className="text-base">Create invitation</CardTitle>
           <CardDescription>
-            The participant will receive an email to set their password and access the platform.
+            Generates a secure, one-time invitation link. Share it with the
+            participant (email, Slack, etc.). They will sign up via magic link —
+            no password required.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -71,7 +88,7 @@ export default function InvitePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="inv-biz">Business name (optional)</Label>
+              <Label htmlFor="inv-biz">Business name</Label>
               <Input
                 id="inv-biz"
                 placeholder="FreshBite Snacks"
@@ -80,12 +97,24 @@ export default function InvitePage() {
               />
             </div>
             {result && (
-              <p className={`text-sm ${result.ok ? "text-green-600" : "text-red-600"}`}>
-                {result.message}
-              </p>
+              <div
+                className={`text-sm space-y-2 ${result.ok ? "text-green-600" : "text-red-600"}`}
+              >
+                <p>{result.message}</p>
+                {result.inviteUrl && (
+                  <div className="rounded border bg-gray-50 p-2 text-xs text-gray-800 break-all">
+                    <p className="font-medium text-gray-600 mb-1">
+                      Invitation link (copy and send):
+                    </p>
+                    <a href={result.inviteUrl} className="underline">
+                      {result.inviteUrl}
+                    </a>
+                  </div>
+                )}
+              </div>
             )}
             <Button type="submit" disabled={loading}>
-              {loading ? "Sending…" : "Send invite"}
+              {loading ? "Creating…" : "Create invitation"}
             </Button>
           </form>
         </CardContent>

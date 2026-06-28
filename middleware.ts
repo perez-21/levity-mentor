@@ -1,81 +1,69 @@
-import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+const isPublicRoute = createRouteMatcher([
+  "/login(.*)",
+  "/accept-invite(.*)",
+  "/api/webhooks/clerk(.*)",
+  "/api/invitations(.*)",
+  "/api/auth/check-email(.*)",
+]);
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+export default clerkMiddleware(async (auth, request) => {
   const { pathname } = request.nextUrl;
 
-  // Public routes that don't require auth
-  const publicRoutes = ["/login", "/accept-invite"];
-  if (publicRoutes.some((r) => pathname.startsWith(r))) {
-    return supabaseResponse;
+  if (isPublicRoute(request)) {
+    return NextResponse.next();
   }
 
-  // Not logged in — redirect to login
-  if (!user) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  const { userId } = await auth();
+
+  if (!userId) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirect_url", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  // Fetch role from profiles
+  const supabase = createAdminClient();
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
-    .eq("id", user.id)
-    .single();
+    .eq("id", userId)
+    .maybeSingle();
 
   const role = profile?.role;
 
-  // Admin-only routes
+  if (!profile) {
+    return NextResponse.redirect(new URL("/accept-invite", request.url));
+  }
+
   if (pathname.startsWith("/admin") && role !== "admin") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // Redirect admin away from participant routes to admin dashboard
   if (
-    (pathname === "/" || pathname.startsWith("/dashboard") || pathname.startsWith("/chat") || pathname.startsWith("/finances")) &&
+    (pathname === "/" ||
+      pathname.startsWith("/dashboard") ||
+      pathname.startsWith("/chat") ||
+      pathname.startsWith("/finances")) &&
     role === "admin"
   ) {
     return NextResponse.redirect(new URL("/admin", request.url));
   }
 
-  // Redirect root to appropriate home
   if (pathname === "/") {
     return NextResponse.redirect(
       new URL(role === "admin" ? "/admin" : "/dashboard", request.url)
     );
   }
 
-  return supabaseResponse;
-}
+  return NextResponse.next();
+});
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
   ],
 };

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getPrimaryEmail } from "@/lib/auth";
 import { anthropic, buildSystemPrompt } from "@/lib/claude";
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, userId } = await createClient();
 
-  if (!user) {
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -15,16 +15,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Message is required" }, { status: 400 });
   }
 
-  // Fetch participant context in parallel
+  const email = await getPrimaryEmail();
+
   const [{ data: profile }, { data: revenue }, { data: expenses }, { data: history }] =
     await Promise.all([
-      supabase.from("profiles").select("*").eq("id", user.id).single(),
-      supabase.from("revenue_entries").select("amount").eq("user_id", user.id),
-      supabase.from("expense_entries").select("amount").eq("user_id", user.id),
+      supabase.from("profiles").select("*").eq("id", userId).single(),
+      supabase.from("revenue_entries").select("amount").eq("user_id", userId),
+      supabase.from("expense_entries").select("amount").eq("user_id", userId),
       supabase
         .from("chat_messages")
         .select("role, content")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .order("created_at", { ascending: true })
         .limit(20),
     ]);
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
   const totalExpenses = (expenses ?? []).reduce((s, e) => s + Number(e.amount), 0);
 
   const systemPrompt = buildSystemPrompt({
-    fullName: profile?.full_name || user.email || "Participant",
+    fullName: profile?.full_name || email || "Participant",
     businessName: profile?.business_name || "",
     businessDescription: profile?.business_description || "",
     initialCapital: Number(profile?.initial_capital ?? 500000),
@@ -41,20 +42,17 @@ export async function POST(request: NextRequest) {
     totalExpenses,
   });
 
-  // Persist user message
   await supabase.from("chat_messages").insert({
-    user_id: user.id,
+    user_id: userId,
     role: "user",
     content: message,
   });
 
-  // Build message history for Claude
   const priorMessages = (history ?? []).map((m) => ({
     role: m.role as "user" | "assistant",
     content: m.content,
   }));
 
-  // Stream response from Claude
   let fullResponse = "";
   const stream = new ReadableStream({
     async start(controller) {
@@ -79,9 +77,8 @@ export async function POST(request: NextRequest) {
 
         controller.close();
 
-        // Persist assistant response after stream completes
         await supabase.from("chat_messages").insert({
-          user_id: user.id,
+          user_id: userId,
           role: "assistant",
           content: fullResponse,
         });

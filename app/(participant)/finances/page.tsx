@@ -7,15 +7,23 @@ import { EntriesTable } from "@/components/finances/EntriesTable";
 import { ProfileForm } from "@/components/finances/ProfileForm";
 
 export default async function FinancesPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, userId } = await createClient();
+  if (!userId) redirect("/login");
 
-  const [{ data: profile }, { data: revenue }, { data: expenses }] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user.id).single(),
-    supabase.from("revenue_entries").select("*").eq("user_id", user.id).order("date", { ascending: false }),
-    supabase.from("expense_entries").select("*").eq("user_id", user.id).order("date", { ascending: false }),
-  ]);
+  const [{ data: profile }, { data: revenue }, { data: expenses }] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("id", userId).single(),
+      supabase
+        .from("revenue_entries")
+        .select("*")
+        .eq("user_id", userId)
+        .order("date", { ascending: false }),
+      supabase
+        .from("expense_entries")
+        .select("*")
+        .eq("user_id", userId)
+        .order("date", { ascending: false }),
+    ]);
 
   return (
     <div className="space-y-6">
