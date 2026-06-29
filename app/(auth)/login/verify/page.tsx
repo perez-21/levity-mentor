@@ -19,6 +19,10 @@ export default function LoginVerifyPage() {
         })
         .catch(() => router.replace("/dashboard"));
     }
+    else {
+      router.push("/login");
+    }
+    
   }, [isLoaded, isSignedIn, router]);
 
   return (

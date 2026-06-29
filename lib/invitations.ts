@@ -23,18 +23,29 @@ export function invitationExpiresAt(days = 7): string {
   return expires.toISOString();
 }
 
+function getSiteUrl(): string {
+  const base = process.env.NEXT_PUBLIC_SITE_URL;
+
+  if (!base) {
+    if (process.env.NODE_ENV !== "development") {
+      throw new Error("NEXT_PUBLIC_SITE_URL must be set");
+    }
+    return "http://localhost:3000";
+  }
+
+  return base.replace(/\/$/, "");
+}
+
 export function buildInviteUrl(token: string): string {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  return `${base.replace(/\/$/, "")}/accept-invite?token=${token}`;
+  return `${getSiteUrl()}/accept-invite?token=${token}`;
 }
 
 export function baseInviteUrl(): string {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  return `${base.replace(/\/$/, "")}/accept-invite`;
+  return `${getSiteUrl()}/accept-invite`;
 }
 
 export async function getInvitationByToken(
-  token: string
+  token: string,
 ): Promise<{ invitation: InvitationRow | null; error?: string }> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -66,12 +77,22 @@ export async function getInvitationByToken(
 
 export async function markInvitationUsed(
   token: string,
-  clerkUserId: string
+  clerkUserId: string,
 ): Promise<void> {
   const supabase = createAdminClient();
-  await supabase
+  const {data, error} = await supabase
     .from("invitations")
     .update({ is_used: true, used_by: clerkUserId })
     .eq("token", token)
-    .eq("is_used", false);
+    .eq("is_used", false)
+    .select("token")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    throw new Error("Invitation is invalid or has already been used");
+  }
 }

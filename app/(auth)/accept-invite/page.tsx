@@ -52,13 +52,13 @@ function AcceptInviteForm() {
   }
 
   useEffect(() => {
-    if (isSignedIn || signUp.status === "complete") {
+    if (isSignedIn || signUp?.status === "complete") {
       router.push("/dashboard");
     }
   }, [isSignedIn, signUp.status, router]);
 
   useEffect(() => {
-
+    if (!token || !ticket) return;
     fetch(`/api/invitations/validate?token=${encodeURIComponent(token)}`)
       .then(async (res) => {
         const data = await res.json();

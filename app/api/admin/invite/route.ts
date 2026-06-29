@@ -51,10 +51,8 @@ export async function POST(request: NextRequest) {
   });
 
   if (error) {
-    console.log(error);
+    await client.invitations.revokeInvitation(invitation.id);
     return NextResponse.json({ error: error.message }, { status: 500 });
-    
-
   }
 
 

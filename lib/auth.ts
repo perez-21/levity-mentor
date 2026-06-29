@@ -27,11 +27,15 @@ export async function requireAuthUserId(): Promise<string> {
 
 export async function getProfile(userId: string): Promise<Profile | null> {
   const supabase = createAdminClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", userId)
     .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
 
   return data as Profile | null;
 }
@@ -42,7 +46,10 @@ export async function getCurrentProfile(): Promise<Profile | null> {
   return getProfile(userId);
 }
 
-export async function requireAdmin(): Promise<{ userId: string; profile: Profile }> {
+export async function requireAdmin(): Promise<{
+  userId: string;
+  profile: Profile;
+}> {
   const userId = await requireAuthUserId();
   const profile = await getProfile(userId);
 
@@ -61,10 +68,14 @@ export async function getPrimaryEmail(): Promise<string | null> {
 export async function profileExistsForEmail(email: string): Promise<boolean> {
   const supabase = createAdminClient();
   const normalized = email.trim().toLowerCase();
-  const { count } = await supabase
+  const { count, error } = await supabase
     .from("profiles")
     .select("*", { count: "exact", head: true })
     .eq("email", normalized);
+
+  if (error) {
+    throw error;
+  }
 
   return (count ?? 0) > 0;
 }
@@ -78,7 +89,7 @@ export async function createProfileFromInvitation(params: {
   role?: "participant" | "admin";
 }): Promise<void> {
   const supabase = createAdminClient();
-  await supabase.from("profiles").upsert({
+  const { error } = await supabase.from("profiles").upsert({
     id: params.clerkUserId,
     email: params.email.trim().toLowerCase(),
     role: params.role ?? "participant",
@@ -86,4 +97,8 @@ export async function createProfileFromInvitation(params: {
     business_name: params.businessName ?? "",
     business_description: params.businessDescription ?? "",
   });
+
+  if (error) {
+    throw error;
+  }
 }

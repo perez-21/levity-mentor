@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
     .select("*")
     .eq("email", normalized)
     .eq("is_used", false)
+    .gt("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -67,6 +68,9 @@ export async function POST(request: NextRequest) {
     .eq("id", event.data.id)
     .maybeSingle();
 
+  if (!existingProfile && !invitation) {
+    return NextResponse.json({ ok: true });
+  }
   if (!existingProfile) {
     await createProfileFromInvitation({
       clerkUserId: event.data.id,
@@ -78,10 +82,15 @@ export async function POST(request: NextRequest) {
   }
 
   if (invitation) {
-    await supabase
+    const { error } = await supabase
       .from("invitations")
       .update({ is_used: true, used_by: event.data.id })
-      .eq("id", invitation.id);
+      .eq("id", invitation.id)
+      .eq("is_used", false);
+
+      if (error) {
+        return NextResponse.json({ error: "Could not consume invitation" }, { status: 500 });
+      }
   }
 
   return NextResponse.json({ ok: true });

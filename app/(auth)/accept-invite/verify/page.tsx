@@ -13,7 +13,10 @@ function VerifyContent() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn || !user || !token) return;
+    if (!isSignedIn && !token) {
+      router.push('/login');
+    }
+    if (!isLoaded || !user ) return;
 
     fetch("/api/invitations/complete", {
       method: "POST",
