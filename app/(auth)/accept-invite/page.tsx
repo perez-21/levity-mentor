@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useSignUp, useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,70 +15,173 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export default function AcceptInvitePage() {
+type InvitationInfo = {
+  email: string;
+  fullName: string | null;
+  businessName: string | null;
+};
+
+function AcceptInviteForm() {
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const [password, setPassword] = useState("");
+  const token = searchParams.get("token") ?? "";
+  const ticket = searchParams.get("__clerk_ticket");
+  const { isSignedIn } = useUser();
+  const { signUp, errors, fetchStatus } = useSignUp();
+
+  const [invitation, setInvitation] = useState<InvitationInfo | null>(null);
   const [businessDescription, setBusinessDescription] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [validating, setValidating] = useState(true);
+
+  if (!token) {
+    setError(
+      "Missing invitation token. Use the link from your invite email.",
+    );
+    setValidating(false);
+    
+  }
+
+  if (!ticket) {
+    setError(
+      "Missing invitation ticket. Use the link from your invite email.",
+    );
+    setValidating(false);
+    
+  }
 
   useEffect(() => {
-    const supabase = createClient();
-    let subscription: { unsubscribe: () => void } | null = null;
+    if (isSignedIn || signUp?.status === "complete") {
+      router.push("/dashboard");
+    }
+  }, [isSignedIn, signUp.status, router]);
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setReady(true);
-        return;
-      }
-
-      const { data } = supabase.auth.onAuthStateChange((event) => {
-        if (event === "INITIAL_SESSION" || event === "SIGNED_IN") {
-          setReady(true);
+  useEffect(() => {
+    if (!token || !ticket) return;
+    fetch(`/api/invitations/validate?token=${encodeURIComponent(token)}`)
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error ?? "Invalid invitation");
+          return;
         }
-      });
-
-      subscription = data.subscription;
-    });
-
-    return () => subscription?.unsubscribe();
-  }, []);
+        setInvitation({
+          email: data.email,
+          fullName: data.fullName || "",
+          businessName: data.businessName,
+        });
+      })
+      .catch(() => setError("Could not verify invitation"))
+      .finally(() => setValidating(false));
+  }, [token, ticket]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!signUp || !invitation || !token) return;
+
     setError("");
     setLoading(true);
 
-    const supabase = createClient();
+    try {
+      const fullNameArr = invitation.fullName?.split(" ");
+      if (!Array.isArray(fullNameArr) || !ticket ) return;
+      const { error: clerkError } = await signUp.ticket({
+        firstName: fullNameArr[0],
+        lastName: fullNameArr[1],
+        ticket,
+      });
 
-    // Update password
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    if (updateError) {
-      setError(updateError.message);
-      setLoading(false);
-      return;
+      if (clerkError) {
+        setError(JSON.stringify(clerkError, null, 2));
+        return;
+      }
+
+      if (signUp.status === 'complete') {
+        await signUp.finalize({
+          navigate: ({session, decorateUrl}) => {
+            if (session?.currentTask) {
+              console.log(session?.currentTask);
+              return;
+            }
+
+            const url = decorateUrl('/dashboard')
+            if (url.startsWith('http')) {
+              window.location.href = url
+            }
+            else {
+              router.push(url)
+            }
+          }
+        });
+      }
+      else {
+        setError("Sign-up attempt not complete: Clerk error");
+      }
+
+      await fetch("/api/invitations/pending", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token,
+          businessDescription: businessDescription.trim(),
+        }),
+      });
+
+      router.push(`/accept-invite/verify?token=${token}`);
+
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to start sign-up. The email may already be registered — try signing in instead.";
+      setError(message);
     }
 
-    // Save business description
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user && businessDescription.trim()) {
-      await supabase
-        .from("profiles")
-        .update({ business_description: businessDescription })
-        .eq("id", user.id);
-    }
-
-    router.push("/dashboard");
-    router.refresh();
+    setLoading(false);
   }
 
-  if (!ready) {
+  if (validating) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-500">Verifying your invite link…</p>
+        <p className="text-gray-500">Verifying your invitation…</p>
+      </div>
+    );
+  }
+
+  // if (sent) {
+  //   return (
+  //     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+  //       <Card className="w-full max-w-md">
+  //         <CardHeader className="text-center">
+  //           <CardTitle className="text-2xl">Check your email</CardTitle>
+  //           <CardDescription>
+  //             We sent an activation link to <strong>{invitation?.email}</strong>
+  //             . Click it to finish setting up your account.
+  //           </CardDescription>
+  //         </CardHeader>
+  //       </Card>
+  //     </div>
+  //   );
+  // }
+
+  if (!invitation) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <p className="text-sm text-red-600 text-center">
+              {error || "Invalid invitation"}
+            </p>
+            <Button
+              variant="outline"
+              className="w-full mt-4"
+              onClick={() => router.push("/login")}
+            >
+              Go to sign in
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -89,23 +192,37 @@ export default function AcceptInvitePage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Welcome to Levity</CardTitle>
           <CardDescription>
-            Set your password to activate your account
+            Complete your sign up. No password needed.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="password">Choose a password</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="password"
-                type="password"
-                placeholder="At least 8 characters"
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                id="email"
+                type="email"
+                value={invitation.email}
+                readOnly
+                disabled
               />
             </div>
+            {(invitation.fullName || invitation.businessName) && (
+              <div className="text-sm text-gray-600 space-y-1">
+                {invitation.fullName && (
+                  <p>
+                    <span className="font-medium">Name:</span>{" "}
+                    {invitation.fullName}
+                  </p>
+                )}
+                {invitation.businessName && (
+                  <p>
+                    <span className="font-medium">Business:</span>{" "}
+                    {invitation.businessName}
+                  </p>
+                )}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="desc">
                 Describe your business idea (optional)
@@ -123,11 +240,25 @@ export default function AcceptInvitePage() {
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Activating…" : "Activate account"}
+              {loading ? "Finishing up…" : "Complete sign up"}
             </Button>
           </form>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function AcceptInvitePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <p className="text-gray-500">Loading…</p>
+        </div>
+      }
+    >
+      <AcceptInviteForm />
+    </Suspense>
   );
 }

@@ -1,87 +1,102 @@
 # Sign-up Guide
 
-This guide covers how to create the first admin account and how to invite participants into the platform.
+Authentication is handled by [Clerk](https://clerk.com) using **magic links** (no passwords). Registration is **invitation-only**: each participant needs a unique token link created by an admin.
 
 ---
 
-## Admin Sign-up
+## Clerk dashboard setup
 
-Admins are not created through the app — they are set up directly in the Supabase dashboard. This is intentional: admin access is sensitive and should only be granted manually.
+Before using the app, configure your Clerk application:
 
-### Step 1 — Invite yourself via Supabase Auth
-
-1. Open your Supabase project dashboard
-2. Go to **Authentication → Users**
-3. Click **Invite user**
-4. Enter your email address and click **Send invite**
-
-### Step 2 — Set your password
-
-You will receive an invite email. Click the link inside it — it takes you to the `/accept-invite` page on the platform (the same page participants use). Enter a password and click **Activate account**.
-
-> If the link doesn't work, check that `<your-domain>/accept-invite` is listed under **Authentication → URL Configuration → Redirect URLs** in Supabase.
-
-After activating, you'll be redirected to `/dashboard`. That's expected — your role is still `participant` at this point.
-
-### Step 3 — Upgrade your role to admin
-
-1. In the Supabase dashboard, go to **Table Editor → profiles**
-2. Find your row (you can cross-reference your email in **Authentication → Users**)
-3. Click the row to edit it
-4. Change the `role` field from `participant` to `admin`
-5. Save
-
-### Step 4 — Log in as admin
-
-Go to `/login`, enter your email and the password you set in Step 2. You'll be redirected to `/admin` automatically.
+1. **Disable passwords** — User & Authentication → Email → turn off password sign-in; enable **Email verification link** (magic link).
+2. **Restrict sign-ups** — User & Authentication → Restrictions → disable public sign-up (invitation-only). Users register only via `/accept-invite?token=…`.
+3. **Webhook** — Developers → Webhooks → add endpoint `https://<your-domain>/api/webhooks/clerk`, subscribe to `user.created`, copy the signing secret into `CLERK_WEBHOOK_SECRET`.
+4. **Allowed redirect URLs** — Add:
+   - `http://localhost:3000/login/verify`
+   - `http://localhost:3000/accept-invite/verify`
+   - Your production URLs for the same paths
 
 ---
 
-## Participant Sign-up
+## Admin setup
 
-Participants cannot self-register. They must be invited by an admin. This keeps the cohort controlled and ties each account to the program.
+Admins are not created through the invite flow. Set up the first admin manually:
+
+### Step 1 — Create your Clerk user
+
+1. In the Clerk dashboard, go to **Users → Create user**
+2. Add your email and create the user
+3. Sign in once via `/login` using the magic link sent to your email
+
+### Step 2 — Add a profile with admin role
+
+1. Copy your Clerk user ID (format `user_…`) from the Clerk dashboard
+2. In Supabase **Table Editor → profiles**, insert or update a row:
+   - `id` = your Clerk user ID
+   - `email` = your email
+   - `role` = `admin`
+   - `full_name` = your name (optional)
+
+### Step 3 — Sign in as admin
+
+Go to `/login`, enter your email, click the magic link in your inbox. You will be redirected to `/admin`.
+
+---
+
+## Participant sign-up
+
+Participants cannot self-register. An admin must create an invitation.
 
 ### How an admin invites a participant
 
-1. Log in as admin and go to **Invite Participant** in the top navigation (or visit `/admin/invite`)
-2. Fill in:
-   - **Email address** (required) — the participant's email
-   - **Full name** (optional) — pre-fills their profile
-   - **Business name** (optional) — pre-fills their profile
-3. Click **Send invite**
+1. Log in as admin and go to **Invite Participant** (`/admin/invite`)
+2. Fill in email (required), full name, and business name (optional)
+3. Click **Create invitation**
+4. Copy the invitation link shown and send it to the participant (email, WhatsApp, etc.)
 
-The participant receives an email from Supabase with a link to set up their account.
-
-> The invite link expires after 24 hours by default. If a participant misses it, send a new invite from the same form.
+Invitations expire after **7 days** and are **single-use**.
 
 ### What the participant does
 
-1. Click the link in the invite email
-2. They arrive at `/accept-invite` on the platform
-3. They set a password (minimum 8 characters)
-4. Optionally, they describe their business idea — this is shared with the AI mentor to make advice more relevant
-5. Click **Activate account** — they're taken straight to their dashboard
+1. Open the invitation link (`/accept-invite?token=…`)
+2. Confirm their email and optionally describe their business
+3. Click **Email me an activation link**
+4. Click the magic link in their inbox
+5. After verification, they land on their dashboard
 
-### After sign-up
+### Returning users
 
-Once a participant is active they can:
+Participants sign in at `/login` with their email only. A magic link is sent if their email exists in `profiles`.
 
-- **Dashboard** — see their financial summary and charts
-- **AI Mentor** (`/chat`) — ask questions; the AI knows their business description and financial data
-- **Finances** (`/finances`) — log revenue and expenses, and update their business profile at any time
+---
+
+## Database: invitations table
+
+| Column | Description |
+|--------|-------------|
+| `token` | Cryptographically secure one-time token (in the invite URL) |
+| `email` | Invitee email (must match Clerk sign-up) |
+| `expires_at` | Expiration timestamp |
+| `is_used` | Whether the invitation has been consumed |
+| `used_by` | Clerk user ID after redemption |
+
+Run `supabase/migrations/002_clerk_invitations.sql` in the Supabase SQL editor if you have not already.
 
 ---
 
 ## Troubleshooting
 
-**Invite email didn't arrive**
-Check the spam folder. If using a custom domain for email, verify DNS records in Supabase → **Project Settings → Auth → SMTP**.
+**Magic link never arrives**  
+Check spam. Verify Clerk email settings and that your domain is allowed.
 
-**Invite link says "invalid or expired"**
-The link has a 24-hour expiry. Re-send the invite from `/admin/invite`.
+**“Invalid invitation”**  
+The token expired or was already used. Create a new invitation from `/admin/invite`.
 
-**Participant lands on the wrong page after accepting invite**
-Make sure `<your-domain>/accept-invite` is in the Supabase **Redirect URLs** allow-list under **Authentication → URL Configuration**.
+**“No account found for this email” on login**  
+The user has not completed invite activation, or no `profiles` row exists for that email.
 
-**Admin sees participant dashboard instead of admin dashboard**
-The `role` field in the `profiles` table is still set to `participant`. Follow Step 2 above to change it.
+**Admin sees participant dashboard**  
+Set `role` to `admin` on their `profiles` row in Supabase.
+
+**Webhook errors**  
+Ensure `CLERK_WEBHOOK_SECRET` matches the Clerk webhook signing secret and the endpoint is publicly reachable.

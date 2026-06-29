@@ -5,18 +5,32 @@ import { FinancialCharts } from "@/components/finances/FinancialCharts";
 import Link from "next/link";
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { supabase, userId } = await createClient();
+  if (!userId) redirect("/login");
 
-  const [{ data: profile }, { data: revenue }, { data: expenses }] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user.id).single(),
-    supabase.from("revenue_entries").select("*").eq("user_id", user.id).order("date", { ascending: true }),
-    supabase.from("expense_entries").select("*").eq("user_id", user.id).order("date", { ascending: true }),
-  ]);
+  const [{ data: profile }, { data: revenue }, { data: expenses }] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("id", userId).single(),
+      supabase
+        .from("revenue_entries")
+        .select("*")
+        .eq("user_id", userId)
+        .order("date", { ascending: true }),
+      supabase
+        .from("expense_entries")
+        .select("*")
+        .eq("user_id", userId)
+        .order("date", { ascending: true }),
+    ]);
 
-  const totalRevenue = (revenue ?? []).reduce((sum, r) => sum + Number(r.amount), 0);
-  const totalExpenses = (expenses ?? []).reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalRevenue = (revenue ?? []).reduce(
+    (sum, r) => sum + Number(r.amount),
+    0
+  );
+  const totalExpenses = (expenses ?? []).reduce(
+    (sum, e) => sum + Number(e.amount),
+    0
+  );
 
   return (
     <div className="space-y-8">
@@ -45,8 +59,11 @@ export default async function DashboardPage() {
 
       {!profile?.business_description && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          <strong>Tip:</strong> Add your business description in your profile so your AI mentor can give you better advice.{" "}
-          <Link href="/finances" className="underline">Go to finances</Link>
+          <strong>Tip:</strong> Add your business description in your profile so
+          your AI mentor can give you better advice.{" "}
+          <Link href="/finances" className="underline">
+            Go to finances
+          </Link>
         </div>
       )}
     </div>
